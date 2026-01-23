@@ -21,7 +21,7 @@ for ((i=1; i<=$1; i++)); do
 
   echo "------- ITERATION $i --------"
 
-  claude \
+  docker sandbox run claude \
     --verbose \
     --print \
     --output-format stream-json \
