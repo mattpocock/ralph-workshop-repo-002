@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "chrome": "google-chrome --remote-debugging-port=9222 --no-sandbox --headless --disable-gpu"
   },
   "dependencies": {
     "next": "16.1.4",
