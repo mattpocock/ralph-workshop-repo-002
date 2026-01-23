@@ -17,7 +17,7 @@ for ((i=1; i<=$1; i++)); do
   trap "rm -f $tmpfile" EXIT
   echo "------- ITERATION $i --------"
 
-  docker sandbox run --credentials host claude \
+  docker sandbox run claude \
     --verbose \
     --print \
     --output-format stream-json \
