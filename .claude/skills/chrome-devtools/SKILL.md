@@ -1,5 +1,5 @@
 ---
-name: chrome-debug
+name: chrome-devtools
 description: How to use Chrome DevTools MCP for browser debugging. Use when you need to inspect pages, take screenshots, debug UI issues, or verify visual changes.
 ---
 
@@ -23,6 +23,14 @@ This runs Chrome with the required flags for Docker/containerized environments:
 - `--disable-gpu` - Avoids GPU issues in containers
 
 Wait a few seconds for Chrome to start before using MCP tools.
+
+## Installation
+
+If `chrome` is not already installed in your environment, add it to your project:
+
+```bash
+npx -y playwright install chromium --with-deps
+```
 
 ## Screenshots
 
