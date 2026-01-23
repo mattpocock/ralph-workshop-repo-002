@@ -7,6 +7,10 @@ description: How to use Chrome DevTools MCP for browser debugging. Use when you 
 
 This skill explains how to use the Chrome DevTools MCP for browser debugging and UI verification.
 
+## Dev Server
+
+Assume that the dev server is running locally on `localhost:3000`.
+
 ## Setup
 
 Before using Chrome DevTools MCP, you must launch Chrome in headless mode with remote debugging enabled:
