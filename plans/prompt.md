@@ -42,7 +42,7 @@ Then, find a way to break it into a smaller chunk and only do that chunk (i.e. c
 
 Before committing, run the feedback loops:
 
-- Check that the feature works using the Chrome DevTools MCP server to test the dev server
+- Check that the feature works using the Playwright MCP server to test the dev server. It will be running on `localhost:3000` - no need to start it yourself.
 - `npm run test` to run the tests
 - `npm run typecheck` to run the type checker
 
