@@ -1,3 +1,3 @@
 #!/bin/bash
 
-claude @plans/prompt.md
+docker sandbox run claude @plans/prompt.md
