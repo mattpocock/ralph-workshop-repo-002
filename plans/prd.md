@@ -8,7 +8,7 @@ Users need a self-hosted link shortening solution with analytics, tagging, and A
 
 A Next.js-based link shortener with:
 - SQLite storage (portable, no external DB)
-- Google auth via Auth.js
+- Dummy user ID (auth deferred to later phase)
 - Full CRUD for links and tags
 - Aggregated click analytics with geo/device data
 - API key management for programmatic access
@@ -18,7 +18,7 @@ A Next.js-based link shortener with:
 
 ## User Stories
 
-1. As a user, I want to sign in with Google, so that I can securely access my links
+1. ~~As a user, I want to sign in with Google, so that I can securely access my links~~ (deferred - using dummy user)
 2. As a user, I want to create a shortened link with a random slug, so that I can share it quickly
 3. As a user, I want to specify a custom slug when creating a link, so that I can have memorable URLs
 4. As a user, I want to bulk create multiple links at once, so that I can save time when adding many links
@@ -51,7 +51,7 @@ A Next.js-based link shortener with:
 31. As a user, I want a health check endpoint, so that I can monitor the service status
 32. As a user, I want a dark mode UI, so that I can use the app comfortably at night
 33. As a user, I want to see my links in a table view, so that I can scan information quickly
-34. As a user, I want to only see my own links, so that my data is private from other users
+34. ~~As a user, I want to only see my own links, so that my data is private from other users~~ (deferred - single dummy user for now)
 
 ## Implementation Decisions
 
@@ -64,7 +64,7 @@ A Next.js-based link shortener with:
 
 ### Schema (conceptual)
 
-**users**: id, google_id, email, name, created_at
+**users**: id, google_id, email, name, created_at (seed with dummy user `user_1` for now)
 
 **links**: id, user_id, slug (unique), destination_url, expires_at, created_at, updated_at, deleted_at
 
@@ -78,11 +78,11 @@ A Next.js-based link shortener with:
 
 **rate_limit_log**: api_key_id, window_start, request_count
 
-### Auth
+### Auth (Deferred)
 
-- Auth.js v5 with Google provider
-- Session stored in JWT
-- Middleware protects /dashboard/* and /api/v1/* routes
+- **Phase 1 (current):** Use hardcoded dummy user ID (`user_1`) for all operations
+- **Phase 2 (future):** Auth.js v5 with Google provider, JWT sessions, route protection
+- No login UI needed for now - all requests assumed to be from dummy user
 
 ### API Structure
 
@@ -134,13 +134,13 @@ All API routes under `/api/v1/`:
 - Sidebar navigation layout
 - Table view for links list
 - Dark mode via Tailwind class strategy
-- Pages: Login, Dashboard (links list), Link detail/edit, Tags, API Keys, Docs
+- Pages: Dashboard (links list), Link detail/edit, Tags, API Keys, Docs (Login deferred)
 
 ### Docs
 
 - Static markdown files in /docs directory
 - Rendered via Next.js pages at /docs/*
-- Covers: Authentication, Links API, Tags API, API Keys, Rate Limits, Errors
+- Covers: Links API, Tags API, API Keys, Rate Limits, Errors (Authentication docs deferred)
 
 ## Testing Decisions
 
@@ -185,8 +185,10 @@ All API routes under `/api/v1/`:
 
 No existing tests in codebase. Will establish patterns with first tests.
 
-## Out of Scope
+## Out of Scope (This Phase)
 
+- User authentication (Google OAuth) - deferred to phase 2
+- Multi-user support - using dummy user for now
 - Team/organization accounts
 - Admin roles or user management
 - Custom domains
@@ -208,24 +210,25 @@ No existing tests in codebase. Will establish patterns with first tests.
 
 ```
 DATABASE_PATH=./data/links.db
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-NEXTAUTH_SECRET=...
-NEXTAUTH_URL=http://localhost:3000
 RATE_LIMIT_MAX=100
 RATE_LIMIT_WINDOW_MS=60000
+# Auth vars (for future phase):
+# GOOGLE_CLIENT_ID=...
+# GOOGLE_CLIENT_SECRET=...
+# NEXTAUTH_SECRET=...
+# NEXTAUTH_URL=http://localhost:3000
 ```
 
 ### Dependencies to Add
 
 - better-sqlite3
-- next-auth (Auth.js)
 - zod
 - ua-parser-js
 - qrcode (client-side)
 - shadcn/ui components
 - @types/better-sqlite3
 - vitest
+- next-auth (Auth.js) - deferred to auth phase
 
 ### Redirect Route
 
