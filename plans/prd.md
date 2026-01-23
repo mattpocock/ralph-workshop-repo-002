@@ -7,6 +7,7 @@ Users need a self-hosted link shortening solution with analytics, tagging, and A
 ## Solution
 
 A Next.js-based link shortener with:
+
 - SQLite storage (portable, no external DB)
 - Dummy user ID (auth deferred to later phase)
 - Full CRUD for links and tags
@@ -120,7 +121,7 @@ All API routes under `/api/v1/`:
 - SQLite table tracks requests per API key per time window
 - Configurable via environment variables (e.g., `RATE_LIMIT_MAX=100`, `RATE_LIMIT_WINDOW_MS=60000`)
 - Returns 429 with Retry-After header when exceeded
-- Only applies to /api/v1/* endpoints, not redirects
+- Only applies to /api/v1/\* endpoints, not redirects
 
 ### QR Codes
 
@@ -139,7 +140,7 @@ All API routes under `/api/v1/`:
 ### Docs
 
 - Static markdown files in /docs directory
-- Rendered via Next.js pages at /docs/*
+- Rendered via Next.js pages at /docs/\*
 - Covers: Links API, Tags API, API Keys, Rate Limits, Errors (Authentication docs deferred)
 
 ## Testing Decisions
@@ -154,29 +155,34 @@ All API routes under `/api/v1/`:
 ### Modules to Test
 
 **db module**
+
 - Migration runs successfully
 - Query helper returns expected results
 - Connection pooling works correctly
 
 **rate-limiter module**
+
 - Allows requests under limit
 - Blocks requests over limit
 - Resets after window expires
 - Handles concurrent requests correctly
 
 **analytics module**
+
 - Records clicks with correct aggregation
 - Geo lookup parses response correctly
 - UA parsing extracts device/browser/os
 - Handles ip-api.com failures gracefully
 
 **links module (business logic)**
+
 - Slug generation produces unique slugs
 - Expiration check identifies expired links
 - Soft delete sets deleted_at without removing row
 - Bulk create handles partial failures
 
 **api-keys module (business logic)**
+
 - Key generation produces secure random keys
 - Key validation compares hashes correctly
 - Last-used tracking updates on validation
@@ -233,6 +239,7 @@ RATE_LIMIT_WINDOW_MS=60000
 ### Redirect Route
 
 The `/:slug` redirect will be handled by a catch-all route that:
+
 1. Looks up slug in database
 2. Checks expiration
 3. Records click asynchronously (non-blocking)
