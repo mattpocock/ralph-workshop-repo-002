@@ -60,67 +60,152 @@ const DUMMY_USER_ID = "user_1";
  * - Uses dummy user (Phase 1 behavior)
  * - No rate limiting applied
  */
-export function withRateLimit(handler: RouteHandler) {
-  return async (request: NextRequest): Promise<NextResponse> => {
-    const db = getDb();
-    runMigrations(db);
+export interface RateLimitedRequestWithParams<P> {
+  request: NextRequest;
+  db: Database.Database;
+  apiKey: ApiKey | null;
+  userId: string;
+  params: P;
+}
 
-    const plainKey = extractApiKey(request);
+type RouteHandlerWithParams<P> = (
+  context: RateLimitedRequestWithParams<P>,
+) => Promise<NextResponse> | NextResponse;
 
-    // If no API key provided, use dummy user (Phase 1)
-    if (!plainKey) {
-      return handler({
-        request,
-        db,
-        apiKey: null,
-        userId: DUMMY_USER_ID,
-      });
+/**
+ * Core rate limiting logic - extracted to share between variants
+ */
+async function handleRateLimit(
+  request: NextRequest,
+): Promise<
+  | {
+      allowed: true;
+      db: Database.Database;
+      apiKey: ApiKey | null;
+      userId: string;
+      addHeaders: (response: NextResponse) => NextResponse;
     }
+  | { allowed: false; response: NextResponse }
+> {
+  const db = getDb();
+  runMigrations(db);
 
-    // Validate API key
-    const apiKey = validateApiKey(db, plainKey);
-    if (!apiKey) {
-      return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
-    }
+  const plainKey = extractApiKey(request);
 
-    // Check rate limit
-    const config = getRateLimitConfig();
-    const rateLimitResult = checkRateLimit(db, apiKey.id, config);
+  // If no API key provided, use dummy user (Phase 1)
+  if (!plainKey) {
+    return {
+      allowed: true,
+      db,
+      apiKey: null,
+      userId: DUMMY_USER_ID,
+      addHeaders: (response) => response,
+    };
+  }
 
-    if (!rateLimitResult.allowed) {
-      const retryAfterSeconds = Math.ceil(
-        (rateLimitResult.retryAfterMs || 0) / 1000,
-      );
-      const response = NextResponse.json(
-        {
-          error: "Rate limit exceeded",
-          retryAfter: retryAfterSeconds,
-        },
-        { status: 429 },
-      );
-      response.headers.set("Retry-After", String(retryAfterSeconds));
-      return addRateLimitHeaders(
+  // Validate API key
+  const apiKey = validateApiKey(db, plainKey);
+  if (!apiKey) {
+    return {
+      allowed: false,
+      response: NextResponse.json(
+        { error: "Invalid API key" },
+        { status: 401 },
+      ),
+    };
+  }
+
+  // Check rate limit
+  const config = getRateLimitConfig();
+  const rateLimitResult = checkRateLimit(db, apiKey.id, config);
+
+  if (!rateLimitResult.allowed) {
+    const retryAfterSeconds = Math.ceil(
+      (rateLimitResult.retryAfterMs || 0) / 1000,
+    );
+    const response = NextResponse.json(
+      {
+        error: "Rate limit exceeded",
+        retryAfter: retryAfterSeconds,
+      },
+      { status: 429 },
+    );
+    response.headers.set("Retry-After", String(retryAfterSeconds));
+    return {
+      allowed: false,
+      response: addRateLimitHeaders(
         response,
         0,
         rateLimitResult.resetAt,
         config.maxRequests,
-      );
+      ),
+    };
+  }
+
+  return {
+    allowed: true,
+    db,
+    apiKey,
+    userId: apiKey.user_id,
+    addHeaders: (response) =>
+      addRateLimitHeaders(
+        response,
+        rateLimitResult.remaining,
+        rateLimitResult.resetAt,
+        config.maxRequests,
+      ),
+  };
+}
+
+export function withRateLimit(handler: RouteHandler) {
+  return async (request: NextRequest): Promise<NextResponse> => {
+    const result = await handleRateLimit(request);
+
+    if (!result.allowed) {
+      return result.response;
     }
 
-    // Call the handler
     const response = await handler({
       request,
-      db,
-      apiKey,
-      userId: apiKey.user_id,
+      db: result.db,
+      apiKey: result.apiKey,
+      userId: result.userId,
     });
 
-    // Add rate limit headers to successful responses
-    return addRateLimitHeaders(
-      response,
-      rateLimitResult.remaining,
-      rateLimitResult.resetAt,
-      config.maxRequests,
-    );
+    return result.addHeaders(response);
+  };
+}
+
+/**
+ * Wraps an API route handler with rate limiting - variant for routes with params
+ *
+ * Usage:
+ * export const GET = withRateLimitParams<{ id: string }>(async ({ request, db, userId, params }) => {
+ *   const { id } = params;
+ *   // ...
+ * });
+ */
+export function withRateLimitParams<P>(handler: RouteHandlerWithParams<P>) {
+  return async (
+    request: NextRequest,
+    { params }: { params: Promise<P> },
+  ): Promise<NextResponse> => {
+    const result = await handleRateLimit(request);
+
+    if (!result.allowed) {
+      return result.response;
+    }
+
+    const resolvedParams = await params;
+
+    const response = await handler({
+      request,
+      db: result.db,
+      apiKey: result.apiKey,
+      userId: result.userId,
+      params: resolvedParams,
+    });
+
+    return result.addHeaders(response);
   };
 }

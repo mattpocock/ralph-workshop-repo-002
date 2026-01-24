@@ -1,1 +1,6 @@
-export { withRateLimit, type RateLimitedRequest } from "./with-rate-limit";
+export {
+  withRateLimit,
+  withRateLimitParams,
+  type RateLimitedRequest,
+  type RateLimitedRequestWithParams,
+} from "./with-rate-limit";
