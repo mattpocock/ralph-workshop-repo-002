@@ -17,7 +17,7 @@ for ((i=1; i<=$1; i++)); do
   trap "rm -f $tmpfile" EXIT
 
   # Experiments in cleaning up any running dev processes
-  npx kill-port 3000 3001
+  npx kill-port 3000
   rm -rf ./.next/dev/lock
 
   # Get last 10 RALPH commits
