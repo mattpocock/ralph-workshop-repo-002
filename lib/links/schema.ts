@@ -61,3 +61,28 @@ export const listLinksResponseSchema = z.object({
 });
 
 export type ListLinksResponse = z.infer<typeof listLinksResponseSchema>;
+
+export const updateLinkSchema = z
+  .object({
+    destinationUrl: z.string().url("Invalid URL format").optional(),
+    expiresAt: z
+      .string()
+      .datetime()
+      .nullable()
+      .optional()
+      .refine(
+        (date) => {
+          if (!date) return true;
+          return new Date(date) > new Date();
+        },
+        { message: "Expiration date must be in the future" },
+      ),
+  })
+  .refine(
+    (data) => data.destinationUrl !== undefined || data.expiresAt !== undefined,
+    {
+      message: "At least one field must be provided",
+    },
+  );
+
+export type UpdateLinkRequest = z.infer<typeof updateLinkSchema>;

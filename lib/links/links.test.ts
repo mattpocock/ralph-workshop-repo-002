@@ -9,6 +9,7 @@ import {
   getLinkById,
   getLinkBySlug,
   getLinks,
+  updateLink,
   slugExists,
   isLinkExpired,
 } from "./index";
@@ -370,6 +371,123 @@ describe("links repository", () => {
       const result = getLinks(testDb, { userId: "user_1" });
       expect(result.links).toHaveLength(20);
       expect(result.total).toBe(25);
+    });
+  });
+
+  describe("updateLink", () => {
+    it("updates destination URL", () => {
+      const link = createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://original.com",
+      });
+
+      const updated = updateLink(testDb, link.id, {
+        destinationUrl: "https://updated.com",
+      });
+
+      expect(updated?.destination_url).toBe("https://updated.com");
+    });
+
+    it("updates expiration date", () => {
+      const link = createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://example.com",
+      });
+
+      const expiresAt = new Date(Date.now() + 86400000).toISOString();
+      const updated = updateLink(testDb, link.id, { expiresAt });
+
+      expect(updated?.expires_at).toBe(expiresAt);
+    });
+
+    it("clears expiration date with null", () => {
+      const expiresAt = new Date(Date.now() + 86400000).toISOString();
+      const link = createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://example.com",
+        expiresAt,
+      });
+
+      const updated = updateLink(testDb, link.id, { expiresAt: null });
+
+      expect(updated?.expires_at).toBeNull();
+    });
+
+    it("updates multiple fields at once", () => {
+      const link = createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://original.com",
+      });
+
+      const expiresAt = new Date(Date.now() + 86400000).toISOString();
+      const updated = updateLink(testDb, link.id, {
+        destinationUrl: "https://updated.com",
+        expiresAt,
+      });
+
+      expect(updated?.destination_url).toBe("https://updated.com");
+      expect(updated?.expires_at).toBe(expiresAt);
+    });
+
+    it("updates updated_at timestamp", () => {
+      // Insert a link with a past timestamp to ensure update changes it
+      testDb
+        .prepare(
+          `INSERT INTO links (id, user_id, slug, destination_url, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          "test-id",
+          "user_1",
+          "test-slug",
+          "https://example.com",
+          "2024-01-01T00:00:00Z",
+          "2024-01-01T00:00:00Z",
+        );
+
+      const link = getLinkById(testDb, "test-id")!;
+
+      const updated = updateLink(testDb, link.id, {
+        destinationUrl: "https://updated.com",
+      });
+
+      expect(updated?.updated_at).not.toBe(link.updated_at);
+    });
+
+    it("returns undefined for non-existent link", () => {
+      const updated = updateLink(testDb, "nonexistent", {
+        destinationUrl: "https://updated.com",
+      });
+
+      expect(updated).toBeUndefined();
+    });
+
+    it("returns undefined for soft-deleted link", () => {
+      const link = createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://example.com",
+      });
+
+      testDb
+        .prepare("UPDATE links SET deleted_at = datetime('now') WHERE id = ?")
+        .run(link.id);
+
+      const updated = updateLink(testDb, link.id, {
+        destinationUrl: "https://updated.com",
+      });
+
+      expect(updated).toBeUndefined();
+    });
+
+    it("returns unchanged link if no updates provided", () => {
+      const link = createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://example.com",
+      });
+
+      const updated = updateLink(testDb, link.id, {});
+
+      expect(updated?.destination_url).toBe(link.destination_url);
     });
   });
 });

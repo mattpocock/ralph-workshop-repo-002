@@ -117,6 +117,53 @@ export function isLinkExpired(expiresAt: string | null): boolean {
   return new Date(expiresAt) < new Date();
 }
 
+export interface UpdateLinkInput {
+  destinationUrl?: string;
+  expiresAt?: string | null;
+}
+
+/**
+ * Updates a link in the database
+ * Returns the updated link, or undefined if not found
+ */
+export function updateLink(
+  db: Database.Database,
+  id: string,
+  input: UpdateLinkInput,
+): Link | undefined {
+  const link = getLinkById(db, id);
+  if (!link) {
+    return undefined;
+  }
+
+  const updates: string[] = [];
+  const params: (string | null)[] = [];
+
+  if (input.destinationUrl !== undefined) {
+    updates.push("destination_url = ?");
+    params.push(input.destinationUrl);
+  }
+
+  if (input.expiresAt !== undefined) {
+    updates.push("expires_at = ?");
+    params.push(input.expiresAt);
+  }
+
+  if (updates.length === 0) {
+    return link;
+  }
+
+  updates.push("updated_at = datetime('now')");
+  params.push(id);
+
+  const stmt = db.prepare(`
+    UPDATE links SET ${updates.join(", ")} WHERE id = ?
+  `);
+  stmt.run(...params);
+
+  return getLinkById(db, id);
+}
+
 export interface GetLinksOptions {
   userId: string;
   limit?: number;
