@@ -8,6 +8,7 @@ import {
   createLink,
   getLinkById,
   getLinkBySlug,
+  getLinks,
   slugExists,
   isLinkExpired,
 } from "./index";
@@ -255,6 +256,120 @@ describe("links repository", () => {
     it("returns true for past expiration date", () => {
       const pastDate = new Date(Date.now() - 86400000).toISOString();
       expect(isLinkExpired(pastDate)).toBe(true);
+    });
+  });
+
+  describe("getLinks", () => {
+    it("returns empty array for user with no links", () => {
+      const result = getLinks(testDb, { userId: "user_1" });
+      expect(result.links).toEqual([]);
+      expect(result.total).toBe(0);
+    });
+
+    it("returns all links for user", () => {
+      createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://example1.com",
+      });
+      createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://example2.com",
+      });
+
+      const result = getLinks(testDb, { userId: "user_1" });
+      expect(result.links).toHaveLength(2);
+      expect(result.total).toBe(2);
+    });
+
+    it("returns links in descending order by created_at", () => {
+      // Insert links with explicit created_at timestamps to ensure ordering
+      testDb
+        .prepare(
+          `INSERT INTO links (id, user_id, slug, destination_url, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(
+          "id1",
+          "user_1",
+          "first-link",
+          "https://first.com",
+          "2024-01-01T00:00:00Z",
+        );
+      testDb
+        .prepare(
+          `INSERT INTO links (id, user_id, slug, destination_url, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(
+          "id2",
+          "user_1",
+          "second-link",
+          "https://second.com",
+          "2024-01-02T00:00:00Z",
+        );
+
+      const result = getLinks(testDb, { userId: "user_1" });
+      expect(result.links[0].slug).toBe("second-link");
+      expect(result.links[1].slug).toBe("first-link");
+    });
+
+    it("respects limit parameter", () => {
+      for (let i = 0; i < 5; i++) {
+        createLink(testDb, {
+          userId: "user_1",
+          destinationUrl: `https://example${i}.com`,
+        });
+      }
+
+      const result = getLinks(testDb, { userId: "user_1", limit: 3 });
+      expect(result.links).toHaveLength(3);
+      expect(result.total).toBe(5);
+    });
+
+    it("respects offset parameter", () => {
+      for (let i = 0; i < 5; i++) {
+        createLink(testDb, {
+          userId: "user_1",
+          destinationUrl: `https://example${i}.com`,
+          slug: `link-${i}`,
+        });
+      }
+
+      const result = getLinks(testDb, {
+        userId: "user_1",
+        limit: 2,
+        offset: 2,
+      });
+      expect(result.links).toHaveLength(2);
+      expect(result.total).toBe(5);
+    });
+
+    it("excludes soft-deleted links", () => {
+      const link = createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://example.com",
+      });
+
+      testDb
+        .prepare("UPDATE links SET deleted_at = datetime('now') WHERE id = ?")
+        .run(link.id);
+
+      const result = getLinks(testDb, { userId: "user_1" });
+      expect(result.links).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
+
+    it("uses default limit of 20", () => {
+      for (let i = 0; i < 25; i++) {
+        createLink(testDb, {
+          userId: "user_1",
+          destinationUrl: `https://example${i}.com`,
+        });
+      }
+
+      const result = getLinks(testDb, { userId: "user_1" });
+      expect(result.links).toHaveLength(20);
+      expect(result.total).toBe(25);
     });
   });
 });

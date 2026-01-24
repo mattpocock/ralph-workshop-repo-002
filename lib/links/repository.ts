@@ -116,3 +116,42 @@ export function isLinkExpired(expiresAt: string | null): boolean {
   if (!expiresAt) return false;
   return new Date(expiresAt) < new Date();
 }
+
+export interface GetLinksOptions {
+  userId: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface GetLinksResult {
+  links: Link[];
+  total: number;
+}
+
+/**
+ * Gets paginated links for a user
+ */
+export function getLinks(
+  db: Database.Database,
+  options: GetLinksOptions,
+): GetLinksResult {
+  const { userId, limit = 20, offset = 0 } = options;
+
+  // Get total count
+  const countStmt = db.prepare(`
+    SELECT COUNT(*) as count FROM links
+    WHERE user_id = ? AND deleted_at IS NULL
+  `);
+  const { count: total } = countStmt.get(userId) as { count: number };
+
+  // Get paginated links
+  const stmt = db.prepare(`
+    SELECT * FROM links
+    WHERE user_id = ? AND deleted_at IS NULL
+    ORDER BY created_at DESC
+    LIMIT ? OFFSET ?
+  `);
+  const links = stmt.all(userId, limit, offset) as Link[];
+
+  return { links, total };
+}
