@@ -187,5 +187,17 @@ describe("click analytics", () => {
       const otherStats = getClickStats(testDb, otherLink.id);
       expect(otherStats.totalClicks).toBe(1);
     });
+
+    it("returns stats for link with no clicks (empty arrays)", () => {
+      const stats = getClickStats(testDb, testLinkId);
+
+      expect(stats.totalClicks).toBe(0);
+      expect(stats.clicksByDate).toEqual([]);
+      expect(stats.clicksByCountry).toEqual([]);
+      expect(stats.clicksByDevice).toEqual([]);
+      expect(stats.clicksByBrowser).toEqual([]);
+      expect(stats.clicksByOs).toEqual([]);
+      expect(stats.clicksByReferrer).toEqual([]);
+    });
   });
 });
