@@ -373,6 +373,90 @@ describe("links repository", () => {
       expect(result.links).toHaveLength(20);
       expect(result.total).toBe(25);
     });
+
+    it("filters links by tag", () => {
+      // Create a tag
+      const tagId = "tag-uuid-1";
+      testDb
+        .prepare(`INSERT INTO tags (id, user_id, name) VALUES (?, ?, ?)`)
+        .run(tagId, "user_1", "test-tag");
+
+      // Create links
+      const link1 = createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://tagged.com",
+        slug: "tagged-link",
+      });
+      const link2 = createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://untagged.com",
+        slug: "untagged-link",
+      });
+
+      // Associate only link1 with the tag
+      testDb
+        .prepare(`INSERT INTO link_tags (link_id, tag_id) VALUES (?, ?)`)
+        .run(link1.id, tagId);
+
+      // Filter by tag
+      const result = getLinks(testDb, { userId: "user_1", tagId });
+      expect(result.links).toHaveLength(1);
+      expect(result.links[0].id).toBe(link1.id);
+      expect(result.total).toBe(1);
+    });
+
+    it("returns empty when filtering by tag with no matches", () => {
+      const tagId = "tag-uuid-empty";
+      testDb
+        .prepare(`INSERT INTO tags (id, user_id, name) VALUES (?, ?, ?)`)
+        .run(tagId, "user_1", "empty-tag");
+
+      createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://example.com",
+      });
+
+      const result = getLinks(testDb, { userId: "user_1", tagId });
+      expect(result.links).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
+
+    it("paginates filtered results by tag", () => {
+      const tagId = "tag-uuid-paginate";
+      testDb
+        .prepare(`INSERT INTO tags (id, user_id, name) VALUES (?, ?, ?)`)
+        .run(tagId, "user_1", "paginate-tag");
+
+      // Create 5 tagged links
+      for (let i = 0; i < 5; i++) {
+        const link = createLink(testDb, {
+          userId: "user_1",
+          destinationUrl: `https://tagged${i}.com`,
+          slug: `tagged-${i}`,
+        });
+        testDb
+          .prepare(`INSERT INTO link_tags (link_id, tag_id) VALUES (?, ?)`)
+          .run(link.id, tagId);
+      }
+
+      // Create 3 untagged links
+      for (let i = 0; i < 3; i++) {
+        createLink(testDb, {
+          userId: "user_1",
+          destinationUrl: `https://untagged${i}.com`,
+          slug: `untagged-${i}`,
+        });
+      }
+
+      const result = getLinks(testDb, {
+        userId: "user_1",
+        tagId,
+        limit: 2,
+        offset: 1,
+      });
+      expect(result.links).toHaveLength(2);
+      expect(result.total).toBe(5);
+    });
   });
 
   describe("updateLink", () => {

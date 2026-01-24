@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
     const query = listLinksQuerySchema.parse({
       limit: searchParams.get("limit") ?? undefined,
       offset: searchParams.get("offset") ?? undefined,
+      tag: searchParams.get("tag") ?? undefined,
     });
 
     const db = getDb();
@@ -93,6 +94,7 @@ export async function GET(request: NextRequest) {
       userId: DUMMY_USER_ID,
       limit: query.limit,
       offset: query.offset,
+      tagId: query.tag,
     });
 
     const baseUrl = getBaseUrl(request);

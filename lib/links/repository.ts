@@ -186,6 +186,7 @@ export interface GetLinksOptions {
   userId: string;
   limit?: number;
   offset?: number;
+  tagId?: string;
 }
 
 export interface GetLinksResult {
@@ -195,21 +196,42 @@ export interface GetLinksResult {
 
 /**
  * Gets paginated links for a user
+ * Optionally filter by tagId
  */
 export function getLinks(
   db: Database.Database,
   options: GetLinksOptions,
 ): GetLinksResult {
-  const { userId, limit = 20, offset = 0 } = options;
+  const { userId, limit = 20, offset = 0, tagId } = options;
 
-  // Get total count
+  if (tagId) {
+    // Filter by tag - use JOIN with link_tags
+    const countStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM links l
+      INNER JOIN link_tags lt ON lt.link_id = l.id
+      WHERE l.user_id = ? AND l.deleted_at IS NULL AND lt.tag_id = ?
+    `);
+    const { count: total } = countStmt.get(userId, tagId) as { count: number };
+
+    const stmt = db.prepare(`
+      SELECT l.* FROM links l
+      INNER JOIN link_tags lt ON lt.link_id = l.id
+      WHERE l.user_id = ? AND l.deleted_at IS NULL AND lt.tag_id = ?
+      ORDER BY l.created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    const links = stmt.all(userId, tagId, limit, offset) as Link[];
+
+    return { links, total };
+  }
+
+  // No tag filter - original behavior
   const countStmt = db.prepare(`
     SELECT COUNT(*) as count FROM links
     WHERE user_id = ? AND deleted_at IS NULL
   `);
   const { count: total } = countStmt.get(userId) as { count: number };
 
-  // Get paginated links
   const stmt = db.prepare(`
     SELECT * FROM links
     WHERE user_id = ? AND deleted_at IS NULL
