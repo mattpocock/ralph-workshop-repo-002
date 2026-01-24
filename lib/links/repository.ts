@@ -182,6 +182,63 @@ export function softDeleteLink(db: Database.Database, id: string): boolean {
   return true;
 }
 
+export interface BulkCreateLinkInput {
+  userId: string;
+  destinationUrl: string;
+  slug?: string;
+  expiresAt?: string;
+}
+
+export interface BulkCreateResult {
+  index: number;
+  success: boolean;
+  link?: Link;
+  error?: string;
+}
+
+/**
+ * Creates multiple links in a single transaction
+ * Each link is processed independently - failures don't affect other links
+ * Returns results for each link with success/failure status
+ */
+export function bulkCreateLinks(
+  db: Database.Database,
+  userId: string,
+  inputs: BulkCreateLinkInput[],
+): BulkCreateResult[] {
+  const results: BulkCreateResult[] = [];
+
+  // Process each link within a transaction for consistency
+  const transaction = db.transaction(() => {
+    for (let i = 0; i < inputs.length; i++) {
+      const input = inputs[i];
+      try {
+        const link = createLink(db, {
+          userId,
+          destinationUrl: input.destinationUrl,
+          slug: input.slug,
+          expiresAt: input.expiresAt,
+        });
+        results.push({
+          index: i,
+          success: true,
+          link,
+        });
+      } catch (error) {
+        results.push({
+          index: i,
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    }
+  });
+
+  transaction();
+
+  return results;
+}
+
 export interface GetLinksOptions {
   userId: string;
   limit?: number;

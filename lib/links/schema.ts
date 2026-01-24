@@ -87,3 +87,42 @@ export const updateLinkSchema = z
   );
 
 export type UpdateLinkRequest = z.infer<typeof updateLinkSchema>;
+
+// Schema for a single link in bulk creation (reuses createLinkSchema validation)
+export const bulkCreateLinkSchema = createLinkSchema;
+
+export const bulkCreateLinksSchema = z.object({
+  links: z
+    .array(bulkCreateLinkSchema)
+    .min(1, "At least one link is required")
+    .max(100, "Maximum 100 links per request"),
+});
+
+export type BulkCreateLinksRequest = z.infer<typeof bulkCreateLinksSchema>;
+
+export interface BulkCreateLinkResult {
+  index: number;
+  success: boolean;
+  link?: LinkResponse;
+  error?: string;
+}
+
+export const bulkCreateLinksResponseSchema = z.object({
+  results: z.array(
+    z.object({
+      index: z.number(),
+      success: z.boolean(),
+      link: linkResponseSchema.optional(),
+      error: z.string().optional(),
+    }),
+  ),
+  summary: z.object({
+    total: z.number(),
+    succeeded: z.number(),
+    failed: z.number(),
+  }),
+});
+
+export type BulkCreateLinksResponse = z.infer<
+  typeof bulkCreateLinksResponseSchema
+>;
