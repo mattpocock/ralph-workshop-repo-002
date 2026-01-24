@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getDb, runMigrations } from "@/lib/db";
+import { NextResponse } from "next/server";
 import {
   createApiKey,
   createApiKeySchema,
@@ -7,21 +6,16 @@ import {
   type CreateApiKeyResponse,
   type ListApiKeysResponse,
 } from "@/lib/api-keys";
+import { withRateLimit } from "@/lib/api";
 import { ZodError } from "zod";
 
-// Hardcoded dummy user for Phase 1
-const DUMMY_USER_ID = "user_1";
-
-export async function POST(request: NextRequest) {
+export const POST = withRateLimit(async ({ request, db, userId }) => {
   try {
     const body = await request.json();
     const validated = createApiKeySchema.parse(body);
 
-    const db = getDb();
-    runMigrations(db);
-
     const { apiKey, plainKey } = createApiKey(db, {
-      userId: DUMMY_USER_ID,
+      userId,
       name: validated.name,
     });
 
@@ -54,14 +48,11 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});
 
-export async function GET() {
+export const GET = withRateLimit(async ({ db, userId }) => {
   try {
-    const db = getDb();
-    runMigrations(db);
-
-    const apiKeys = getApiKeys(db, DUMMY_USER_ID);
+    const apiKeys = getApiKeys(db, userId);
 
     const response: ListApiKeysResponse = {
       apiKeys: apiKeys.map((key) => ({
@@ -80,4 +71,4 @@ export async function GET() {
       { status: 500 },
     );
   }
-}
+});

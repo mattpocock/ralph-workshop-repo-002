@@ -1,49 +1,38 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getDb, runMigrations } from "@/lib/db";
+import { NextResponse } from "next/server";
 import { getLinkById } from "@/lib/links";
 import { removeTagFromLink } from "@/lib/link-tags";
-
-// Hardcoded dummy user for Phase 1
-const DUMMY_USER_ID = "user_1";
+import { withRateLimitParams } from "@/lib/api";
 
 /**
  * DELETE /api/v1/links/:id/tags/:tagId - Remove a tag from a link
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string; tagId: string }> },
-) {
-  try {
-    const { id, tagId } = await params;
+export const DELETE = withRateLimitParams<{ id: string; tagId: string }>(
+  async ({ db, userId, params }) => {
+    try {
+      const { id, tagId } = params;
 
-    const db = getDb();
-    runMigrations(db);
+      // Check if link exists and belongs to current user
+      const link = getLinkById(db, id);
+      if (!link || link.user_id !== userId) {
+        return NextResponse.json({ error: "Link not found" }, { status: 404 });
+      }
 
-    // Check if link exists and belongs to current user
-    const link = getLinkById(db, id);
-    if (!link) {
-      return NextResponse.json({ error: "Link not found" }, { status: 404 });
-    }
+      const removed = removeTagFromLink(db, id, tagId);
 
-    if (link.user_id !== DUMMY_USER_ID) {
-      return NextResponse.json({ error: "Link not found" }, { status: 404 });
-    }
+      if (!removed) {
+        return NextResponse.json(
+          { error: "Tag not associated with this link" },
+          { status: 404 },
+        );
+      }
 
-    const removed = removeTagFromLink(db, id, tagId);
-
-    if (!removed) {
+      return new NextResponse(null, { status: 204 });
+    } catch (error) {
+      console.error("Error removing tag from link:", error);
       return NextResponse.json(
-        { error: "Tag not associated with this link" },
-        { status: 404 },
+        { error: "Internal server error" },
+        { status: 500 },
       );
     }
-
-    return new NextResponse(null, { status: 204 });
-  } catch (error) {
-    console.error("Error removing tag from link:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+  },
+);
