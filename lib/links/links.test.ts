@@ -10,6 +10,7 @@ import {
   getLinkBySlug,
   getLinks,
   updateLink,
+  softDeleteLink,
   slugExists,
   isLinkExpired,
 } from "./index";
@@ -488,6 +489,54 @@ describe("links repository", () => {
       const updated = updateLink(testDb, link.id, {});
 
       expect(updated?.destination_url).toBe(link.destination_url);
+    });
+  });
+
+  describe("softDeleteLink", () => {
+    it("soft deletes a link", () => {
+      const link = createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://example.com",
+      });
+
+      const result = softDeleteLink(testDb, link.id);
+
+      expect(result).toBe(true);
+      expect(getLinkById(testDb, link.id)).toBeUndefined();
+    });
+
+    it("returns false for non-existent link", () => {
+      const result = softDeleteLink(testDb, "nonexistent");
+
+      expect(result).toBe(false);
+    });
+
+    it("returns false for already soft-deleted link", () => {
+      const link = createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://example.com",
+      });
+
+      softDeleteLink(testDb, link.id);
+      const result = softDeleteLink(testDb, link.id);
+
+      expect(result).toBe(false);
+    });
+
+    it("preserves soft-deleted link in database", () => {
+      const link = createLink(testDb, {
+        userId: "user_1",
+        destinationUrl: "https://example.com",
+      });
+
+      softDeleteLink(testDb, link.id);
+
+      // Link should still exist in database with deleted_at set
+      const row = testDb
+        .prepare("SELECT * FROM links WHERE id = ?")
+        .get(link.id) as { deleted_at: string | null } | undefined;
+      expect(row).toBeDefined();
+      expect(row?.deleted_at).not.toBeNull();
     });
   });
 });

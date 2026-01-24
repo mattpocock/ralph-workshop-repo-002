@@ -164,6 +164,24 @@ export function updateLink(
   return getLinkById(db, id);
 }
 
+/**
+ * Soft deletes a link by setting deleted_at
+ * Returns true if the link was deleted, false if not found
+ */
+export function softDeleteLink(db: Database.Database, id: string): boolean {
+  const link = getLinkById(db, id);
+  if (!link) {
+    return false;
+  }
+
+  const stmt = db.prepare(`
+    UPDATE links SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ?
+  `);
+  stmt.run(id);
+
+  return true;
+}
+
 export interface GetLinksOptions {
   userId: string;
   limit?: number;

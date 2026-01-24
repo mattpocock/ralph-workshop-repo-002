@@ -4,6 +4,7 @@ import {
   getLinkById,
   updateLink,
   updateLinkSchema,
+  softDeleteLink,
   type LinkResponse,
 } from "@/lib/links";
 
@@ -112,6 +113,38 @@ export async function PATCH(
     return NextResponse.json(response);
   } catch (error) {
     console.error("Error updating link:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+
+    const db = getDb();
+    runMigrations(db);
+
+    // Check if link exists and belongs to current user
+    const existingLink = getLinkById(db, id);
+    if (!existingLink) {
+      return NextResponse.json({ error: "Link not found" }, { status: 404 });
+    }
+
+    if (existingLink.user_id !== DUMMY_USER_ID) {
+      return NextResponse.json({ error: "Link not found" }, { status: 404 });
+    }
+
+    softDeleteLink(db, id);
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error("Error deleting link:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
