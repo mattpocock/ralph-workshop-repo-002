@@ -1,12 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import QRCode from "qrcode";
 import type { ListLinksResponse, LinkResponse } from "@/lib/links";
 
 export default function Dashboard() {
   const [data, setData] = useState<ListLinksResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [qrModal, setQrModal] = useState<{
+    url: string;
+    slug: string;
+    dataUrl: string;
+  } | null>(null);
+
+  const generateQrCode = useCallback(async (url: string, slug: string) => {
+    try {
+      const dataUrl = await QRCode.toDataURL(url, {
+        width: 256,
+        margin: 2,
+        color: { dark: "#000000", light: "#ffffff" },
+      });
+      setQrModal({ url, slug, dataUrl });
+    } catch (err) {
+      console.error("Failed to generate QR code:", err);
+    }
+  }, []);
 
   useEffect(() => {
     async function fetchLinks() {
@@ -79,15 +98,31 @@ export default function Dashboard() {
                   <th className="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     Expires
                   </th>
+                  <th className="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {data?.links.map((link: LinkResponse) => (
-                  <LinkRow key={link.id} link={link} />
+                  <LinkRow
+                    key={link.id}
+                    link={link}
+                    onQrCode={() => generateQrCode(link.shortUrl, link.slug)}
+                  />
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+
+        {qrModal && (
+          <QrCodeModal
+            url={qrModal.url}
+            slug={qrModal.slug}
+            dataUrl={qrModal.dataUrl}
+            onClose={() => setQrModal(null)}
+          />
         )}
 
         {data && data.pagination.hasMore && (
@@ -102,7 +137,13 @@ export default function Dashboard() {
   );
 }
 
-function LinkRow({ link }: { link: LinkResponse }) {
+function LinkRow({
+  link,
+  onQrCode,
+}: {
+  link: LinkResponse;
+  onQrCode: () => void;
+}) {
   const createdDate = new Date(link.createdAt).toLocaleDateString();
   const expiresDate = link.expiresAt
     ? new Date(link.expiresAt).toLocaleDateString()
@@ -139,6 +180,65 @@ function LinkRow({ link }: { link: LinkResponse }) {
           <span className="text-zinc-400 dark:text-zinc-600">Never</span>
         )}
       </td>
+      <td className="px-4 py-3">
+        <button
+          onClick={onQrCode}
+          className="px-3 py-1 text-sm rounded border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+        >
+          QR Code
+        </button>
+      </td>
     </tr>
+  );
+}
+
+function QrCodeModal({
+  url,
+  slug,
+  dataUrl,
+  onClose,
+}: {
+  url: string;
+  slug: string;
+  dataUrl: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-zinc-900 rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            QR Code for /{slug}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+          >
+            &times;
+          </button>
+        </div>
+        <div className="flex justify-center mb-4">
+          <img src={dataUrl} alt={`QR code for ${url}`} className="w-64 h-64" />
+        </div>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center break-all">
+          {url}
+        </p>
+        <div className="mt-4 flex justify-center">
+          <a
+            href={dataUrl}
+            download={`qr-${slug}.png`}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+          >
+            Download PNG
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
