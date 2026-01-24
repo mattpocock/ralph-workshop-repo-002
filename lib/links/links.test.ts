@@ -9,6 +9,7 @@ import {
   getLinkById,
   getLinkBySlug,
   slugExists,
+  isLinkExpired,
 } from "./index";
 
 describe("slug utilities", () => {
@@ -238,6 +239,22 @@ describe("links repository", () => {
 
     it("returns false if slug does not exist", () => {
       expect(slugExists(testDb, "nonexistent")).toBe(false);
+    });
+  });
+
+  describe("isLinkExpired", () => {
+    it("returns false for null expires_at", () => {
+      expect(isLinkExpired(null)).toBe(false);
+    });
+
+    it("returns false for future expiration date", () => {
+      const futureDate = new Date(Date.now() + 86400000).toISOString();
+      expect(isLinkExpired(futureDate)).toBe(false);
+    });
+
+    it("returns true for past expiration date", () => {
+      const pastDate = new Date(Date.now() - 86400000).toISOString();
+      expect(isLinkExpired(pastDate)).toBe(true);
     });
   });
 });

@@ -108,3 +108,11 @@ export function slugExists(db: Database.Database, slug: string): boolean {
   `);
   return stmt.get(slug) !== undefined;
 }
+
+/**
+ * Check if a link has expired based on its expires_at field
+ */
+export function isLinkExpired(expiresAt: string | null): boolean {
+  if (!expiresAt) return false;
+  return new Date(expiresAt) < new Date();
+}
