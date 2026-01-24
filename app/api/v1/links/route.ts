@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, runMigrations } from "@/lib/db";
 import {
   createLink,
   createLinkSchema,
@@ -8,10 +7,8 @@ import {
   type LinkResponse,
   type ListLinksResponse,
 } from "@/lib/links";
+import { withRateLimit } from "@/lib/api";
 import { ZodError } from "zod";
-
-// Hardcoded dummy user for Phase 1
-const DUMMY_USER_ID = "user_1";
 
 function getBaseUrl(request: NextRequest): string {
   const host = request.headers.get("host") || "localhost:3000";
@@ -19,16 +16,13 @@ function getBaseUrl(request: NextRequest): string {
   return `${protocol}://${host}`;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withRateLimit(async ({ request, db, userId }) => {
   try {
     const body = await request.json();
     const validated = createLinkSchema.parse(body);
 
-    const db = getDb();
-    runMigrations(db);
-
     const link = createLink(db, {
-      userId: DUMMY_USER_ID,
+      userId,
       destinationUrl: validated.destinationUrl,
       slug: validated.slug,
       expiresAt: validated.expiresAt,
@@ -76,9 +70,9 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});
 
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(async ({ request, db, userId }) => {
   try {
     const { searchParams } = new URL(request.url);
     const query = listLinksQuerySchema.parse({
@@ -87,11 +81,8 @@ export async function GET(request: NextRequest) {
       tag: searchParams.get("tag") ?? undefined,
     });
 
-    const db = getDb();
-    runMigrations(db);
-
     const { links, total } = getLinks(db, {
-      userId: DUMMY_USER_ID,
+      userId,
       limit: query.limit,
       offset: query.offset,
       tagId: query.tag,
@@ -138,4 +129,4 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});
