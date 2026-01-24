@@ -16,6 +16,10 @@ for ((i=1; i<=$1; i++)); do
   tmpfile=$(mktemp)
   trap "rm -f $tmpfile" EXIT
 
+  # Experiments in cleaning up any running dev processes
+  npx kill-port 3000 3001
+  rm -rf ./.next/dev/lock
+
   # Get last 10 RALPH commits
   ralph_commits=$(git log --grep="RALPH" -n 10 --format="%H%n%ad%n%B---" --date=short 2>/dev/null || echo "No RALPH commits found")
 
