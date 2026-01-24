@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npx kill-port 3000 3001 3002 && next dev",
+    "dev": "rm -rf .next && npx kill-port 3000 3001 3002 && next dev",
     "build": "next build",
     "start": "next start",
     "format": "prettier --write .",
