@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, runMigrations } from "@/lib/db";
 import { getLinkBySlug, isLinkExpired } from "@/lib/links";
+import { recordClick } from "@/lib/click-analytics";
+
+/**
+ * Extract referrer domain from the Referer header
+ */
+function extractReferrerDomain(referer: string | null): string | null {
+  if (!referer) return null;
+  try {
+    const url = new URL(referer);
+    return url.hostname;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -23,7 +37,18 @@ export async function GET(
     return new NextResponse("This link has expired", { status: 410 });
   }
 
-  // TODO: Record click asynchronously (analytics - future task)
+  // Record click (non-blocking - errors don't affect redirect)
+  try {
+    const referer = request.headers.get("referer");
+    recordClick(db, {
+      linkId: link.id,
+      referrerDomain: extractReferrerDomain(referer),
+      // TODO: Add geo lookup (ip-api.com) and user-agent parsing (ua-parser-js) in future task
+    });
+  } catch (error) {
+    // Log but don't fail the redirect
+    console.error("Failed to record click:", error);
+  }
 
   // Redirect to destination
   return NextResponse.redirect(link.destination_url, 302);
