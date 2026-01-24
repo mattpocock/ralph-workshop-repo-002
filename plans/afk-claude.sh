@@ -23,7 +23,6 @@ for ((i=1; i<=$1; i++)); do
   echo "------- ITERATION $i --------"
   
   # Experiments in cleaning up any running dev processes
-  npx kill-port 3000 3001
   rm -rf ./.next/dev/lock
 
   docker sandbox run claude \
