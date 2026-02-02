@@ -3,47 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import QRCode from "qrcode";
 import type { ListLinksResponse, LinkResponse } from "@/lib/links";
-
-function useDarkMode() {
-  const [isDark, setIsDark] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const stored = localStorage.getItem("theme");
-    if (stored === "dark") {
-      setIsDark(true);
-      document.documentElement.classList.add("dark");
-    } else if (stored === "light") {
-      setIsDark(false);
-      document.documentElement.classList.remove("dark");
-    } else {
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)",
-      ).matches;
-      setIsDark(prefersDark);
-      if (prefersDark) {
-        document.documentElement.classList.add("dark");
-      }
-    }
-  }, []);
-
-  const toggle = useCallback(() => {
-    setIsDark((prev) => {
-      const next = !prev;
-      if (next) {
-        document.documentElement.classList.add("dark");
-        localStorage.setItem("theme", "dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-        localStorage.setItem("theme", "light");
-      }
-      return next;
-    });
-  }, []);
-
-  return { isDark, toggle, mounted };
-}
+import { Sidebar } from "./components/sidebar";
 
 export default function Dashboard() {
   const [data, setData] = useState<ListLinksResponse | null>(null);
@@ -54,7 +14,6 @@ export default function Dashboard() {
     slug: string;
     dataUrl: string;
   } | null>(null);
-  const { isDark, toggle: toggleDarkMode, mounted } = useDarkMode();
 
   const generateQrCode = useCallback(async (url: string, slug: string) => {
     try {
@@ -87,143 +46,81 @@ export default function Dashboard() {
     fetchLinks();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-8">
-        <div className="max-w-6xl mx-auto">
-          <p className="text-zinc-500">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-8">
-        <div className="max-w-6xl mx-auto">
-          <p className="text-red-500">Error: {error}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-8">
-      <div className="max-w-6xl mx-auto">
-        <header className="mb-8 flex items-start justify-between">
-          <div>
+    <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <Sidebar />
+      <main className="flex-1 p-8">
+        <div className="max-w-6xl">
+          <header className="mb-8">
             <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
               Links
             </h1>
             <p className="text-zinc-500 dark:text-zinc-400 mt-1">
               {data?.pagination.total ?? 0} total links
             </p>
-          </div>
-          {mounted && (
-            <button
-              onClick={toggleDarkMode}
-              className="p-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-              aria-label={
-                isDark ? "Switch to light mode" : "Switch to dark mode"
-              }
-            >
-              {isDark ? (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2" />
-                  <path d="M12 20v2" />
-                  <path d="m4.93 4.93 1.41 1.41" />
-                  <path d="m17.66 17.66 1.41 1.41" />
-                  <path d="M2 12h2" />
-                  <path d="M20 12h2" />
-                  <path d="m6.34 17.66-1.41 1.41" />
-                  <path d="m19.07 4.93-1.41 1.41" />
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-                </svg>
-              )}
-            </button>
+          </header>
+
+          {loading ? (
+            <p className="text-zinc-500">Loading...</p>
+          ) : error ? (
+            <p className="text-red-500">Error: {error}</p>
+          ) : data?.links.length === 0 ? (
+            <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
+              No links yet. Create your first link to get started.
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <table className="w-full text-left">
+                <thead className="bg-zinc-100 dark:bg-zinc-900">
+                  <tr>
+                    <th className="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Short URL
+                    </th>
+                    <th className="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Destination
+                    </th>
+                    <th className="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Created
+                    </th>
+                    <th className="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Expires
+                    </th>
+                    <th className="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                  {data?.links.map((link: LinkResponse) => (
+                    <LinkRow
+                      key={link.id}
+                      link={link}
+                      onQrCode={() => generateQrCode(link.shortUrl, link.slug)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-        </header>
 
-        {data?.links.length === 0 ? (
-          <div className="text-center py-12 text-zinc-500 dark:text-zinc-400">
-            No links yet. Create your first link to get started.
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-            <table className="w-full text-left">
-              <thead className="bg-zinc-100 dark:bg-zinc-900">
-                <tr>
-                  <th className="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    Short URL
-                  </th>
-                  <th className="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    Destination
-                  </th>
-                  <th className="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    Created
-                  </th>
-                  <th className="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    Expires
-                  </th>
-                  <th className="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {data?.links.map((link: LinkResponse) => (
-                  <LinkRow
-                    key={link.id}
-                    link={link}
-                    onQrCode={() => generateQrCode(link.shortUrl, link.slug)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+          {qrModal && (
+            <QrCodeModal
+              url={qrModal.url}
+              slug={qrModal.slug}
+              dataUrl={qrModal.dataUrl}
+              onClose={() => setQrModal(null)}
+            />
+          )}
 
-        {qrModal && (
-          <QrCodeModal
-            url={qrModal.url}
-            slug={qrModal.slug}
-            dataUrl={qrModal.dataUrl}
-            onClose={() => setQrModal(null)}
-          />
-        )}
-
-        {data && data.pagination.hasMore && (
-          <div className="mt-4 text-center">
-            <p className="text-sm text-zinc-500">
-              Showing {data.links.length} of {data.pagination.total} links
-            </p>
-          </div>
-        )}
-      </div>
+          {data && data.pagination.hasMore && (
+            <div className="mt-4 text-center">
+              <p className="text-sm text-zinc-500">
+                Showing {data.links.length} of {data.pagination.total} links
+              </p>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
