@@ -10,6 +10,7 @@
     "lint": "eslint",
     "typecheck": "tsc",
     "test": "vitest run --passWithNoTests",
+    "rebase-all": "chmod +x internal/rebase-and-push.sh && internal/rebase-and-push.sh",
     "chrome": "google-chrome --remote-debugging-port=9222 --no-sandbox --headless --disable-gpu",
     "prepare": "husky"
   },
